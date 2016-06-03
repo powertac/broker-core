@@ -33,7 +33,6 @@ import org.powertac.samplebroker.interfaces.IpcAdapter;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.*;
 
 /**
@@ -49,19 +48,31 @@ public class BrokerMessageReceiverTest
   List<String> cookedTypes = Arrays.asList("cash", "sim-pause");
 
   ArrayList<String> exportedMessages;
+  ArrayList<Object> dispatchedMessages;
 
   @Before
   public void setUp () throws Exception
   {
+    exportedMessages = new ArrayList<>();
+    dispatchedMessages = new ArrayList<>();
     uut = new BrokerMessageReceiver();
     ReflectionTestUtils.setField(uut, "adapter", new Adapter());
+
     md = mock(MessageDispatcher.class);
     ReflectionTestUtils.setField(uut, "messageDispatcher", md);
+
     xmc = mock(XMLMessageConverter.class);
     ReflectionTestUtils.setField(uut, "converter", xmc);
+    when(xmc.fromXML(anyString())).thenAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        return("converted-" + (String)args[0]);
+      }
+    });
+
     BrokerPropertiesService bps = mock(BrokerPropertiesService.class);
     ReflectionTestUtils.setField(uut, "propertiesService", bps);
-    exportedMessages = new ArrayList<>();
     ReflectionTestUtils.setField(uut, "rawMsgTypes", rawTypes);
     ReflectionTestUtils.setField(uut, "cookedMsgTypes", cookedTypes);
   }
@@ -101,19 +112,42 @@ public class BrokerMessageReceiverTest
   @Test
   public void testCookedMsg ()
   {
-    
+    ReflectionTestUtils.setField(uut, "rawXml", true);
+    uut.initialize();
+    String msg = "<sim-pause value=\"42\"/>";
+    TextMessage tmsg = createTextMessage(msg);
+    assertEquals("no exported messages", 0, exportedMessages.size());
+    uut.onMessage(tmsg);
+    assertEquals("no exported messages", 0, exportedMessages.size());
+    verify(md).routeMessage("converted-<sim-pause value=\"42\"/>");
   }
 
   @Test
   public void testRawCookedMsg ()
   {
-    
+    ReflectionTestUtils.setField(uut, "rawXml", true);
+    uut.initialize();
+    String msg = "<cash value=\"42\"/>";
+    TextMessage tmsg = createTextMessage(msg);
+    assertEquals("no exported messages", 0, exportedMessages.size());
+    uut.onMessage(tmsg);
+    assertEquals("one exported msg", 1, exportedMessages.size());
+    assertEquals("correct msg", msg, exportedMessages.get(0));
+    verify(md).routeMessage("converted-<cash value=\"42\"/>");
   }
 
   // Try without rawXml
   @Test
   public void testNormalMsg ()
   {
+    ReflectionTestUtils.setField(uut, "rawXml", false);
+    uut.initialize();
+    String msg = "<market-tx value=\"42\"/>";
+    TextMessage tmsg = createTextMessage(msg);
+    assertEquals("no exported messages", 0, exportedMessages.size());
+    uut.onMessage(tmsg);
+    assertEquals("no exported messages", 0, exportedMessages.size());
+    verify(md).routeMessage("converted-<market-tx value=\"42\"/>");
     
   }
 
