@@ -16,7 +16,10 @@
 package org.powertac.samplebroker.core;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -27,6 +30,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.powertac.common.XMLMessageConverter;
 import org.powertac.common.config.ConfigurableValue;
+import org.powertac.common.spring.SpringApplicationContext;
+import org.powertac.samplebroker.interfaces.Initializable;
+import org.powertac.samplebroker.interfaces.IpcAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -40,17 +46,19 @@ public class BrokerMessageReceiver implements MessageListener
   static private Logger log = LogManager.getLogger(BrokerMessageReceiver.class);
   
   @Autowired
-  XMLMessageConverter converter;
+  private XMLMessageConverter converter;
   
   @Autowired 
-  MessageDispatcher messageDispatcher;
+  private MessageDispatcher messageDispatcher;
+
+  private IpcAdapter adapter;
 
   @Autowired
   private BrokerPropertiesService propertiesService;
 
   @ConfigurableValue(valueType = "Boolean",
       description = "If true, then some messages are not converted to java")
-  private Boolean rawXML = false;
+  private Boolean rawXml = false;
 
   @ConfigurableValue(valueType = "List",
       description = "These xml message types are passed without conversion")
@@ -60,18 +68,61 @@ public class BrokerMessageReceiver implements MessageListener
       description = "These xml message types are passed after conversion")
   private List<String> cookedMsgTypes = new ArrayList<>();
 
+  // hash sets to speed lookup of xml types
+  private HashSet<String> rawTypes;
+  private HashSet<String> cookedTypes;
+  private Pattern tagRe = Pattern.compile("<(\\S+)\\s");
+
   public void initialize ()
   {
     propertiesService.configureMe(this);
+    if (rawXml) {
+      // set up data structures
+      rawTypes = new HashSet<>();
+      rawMsgTypes.forEach(msg -> rawTypes.add(msg));
+      cookedTypes = new HashSet<>();
+      cookedMsgTypes.forEach(msg -> cookedTypes.add(msg));
+      // find the message handler if it's not already there
+      if (null == adapter) {
+        List<IpcAdapter> handlers =
+            SpringApplicationContext.listBeansOfType(IpcAdapter.class);
+        if (handlers.size() > 0) {
+          // assume it's one
+          adapter = handlers.get(0);
+        }
+        else {
+          log.error("Raw xml specified, but no adapter available");
+          rawXml = false;
+        }
+      }
+    }
   }
 
   @Override
   public void onMessage (Message message)
   {
     if (message instanceof TextMessage) {
+      String msg;
       try {
         log.debug("onMessage(Message) - receiving a message");
-        onMessage(((TextMessage) message).getText());
+        msg = ((TextMessage) message).getText();
+        if (rawXml) {
+          // Extract the tag, conditionally pass on the message and/or
+          // unmarshal it and process it locally
+          Matcher m = tagRe.matcher(msg);
+          if (m.lookingAt()) {
+            String tag = m.group(1);
+            if (rawTypes.contains(tag)) {
+              adapter.exportMessage(msg);
+            }
+            if (cookedTypes.contains(tag)) {
+              onMessage(msg);
+            }
+          }
+        }
+        else {
+          onMessage(msg);
+        }
       } catch (JMSException e) {
         log.error("failed to extract text from TextMessage", e);
       }
@@ -81,7 +132,7 @@ public class BrokerMessageReceiver implements MessageListener
   private void onMessage (String xml) {
     log.info("onMessage(String) - received message:\n" + xml);
     Object message = converter.fromXML(xml);
-    log.debug("onMessage(String) - received message of type " + message.getClass().getSimpleName());
+    //log.debug("onMessage(String) - received message of type " + message.getClass().getSimpleName());
     messageDispatcher.routeMessage(message);
   }
 }

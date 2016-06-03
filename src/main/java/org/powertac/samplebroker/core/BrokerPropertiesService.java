@@ -18,6 +18,7 @@ package org.powertac.samplebroker.core;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Properties;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
@@ -54,7 +55,6 @@ implements ApplicationContextAware
   public BrokerPropertiesService ()
   {
     super();
-    
     recycle();
   }
 
@@ -66,7 +66,7 @@ implements ApplicationContextAware
     configurator = new Configurator();
     initialized = false;
   }
-  
+
   /**
    * Loads the properties from classpath, default config file,
    * and user-specified config file, just in case it's not already been
@@ -95,7 +95,7 @@ implements ApplicationContextAware
     
     // set up the classpath props
     try {
-      Resource[] xmlResources = context.getResources("classpath*:config/properties.xml");
+      Resource[] xmlResources = context.getResources("classpath*:config/*.xml");
       for (Resource xml : xmlResources) {
         if (validXmlResource(xml)) {
           log.info("loading config from " + xml.getURI());
@@ -127,7 +127,13 @@ implements ApplicationContextAware
     // set up the configurator
     configurator.setConfiguration(config);
   }
-  
+
+  /**
+   * Adds the properties-style configuration file to the broker
+   * configuration. Note that the order in which configurations are added
+   * matters. Specifically, earlier configuration sources will override
+   * later sources.
+   */
   public void setUserConfig (File userConfig)
   {
     // then load the user-specified config
@@ -143,6 +149,26 @@ implements ApplicationContextAware
     lazyInit();
   }
 
+  /**
+   * Adds the Properties structure to the broker configuration. Earlier
+   * configuration sources take precedence over later sources.
+   */
+  public void addProperties (Properties props)
+  {
+    PropertiesConfiguration pconfig = new PropertiesConfiguration();
+    props.forEach((key, value) -> pconfig.addProperty((String) key, value));
+    addProperties(pconfig);
+  }
+
+  /**
+   * Adds the PropertiesConfiguration to the broker configuration. Earlier
+   * configuration sources take precedence over later sources.
+   */
+  public void addProperties (PropertiesConfiguration props)
+  {
+    config.addConfiguration(props);
+  }
+
   public void configureMe (Object target)
   {
     lazyInit();
@@ -154,7 +180,7 @@ implements ApplicationContextAware
     lazyInit();
     return configurator.configureInstances(target);
   }
-  
+
   public String getProperty (String name)
   {
     lazyInit();

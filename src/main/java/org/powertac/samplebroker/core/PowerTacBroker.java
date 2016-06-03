@@ -19,7 +19,7 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.util.Date;
 import java.util.List;
-
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.Instant;
@@ -98,7 +98,7 @@ implements BrokerContext
   // take the viewpoint of the broker.
 
   @ConfigurableValue(valueType = "Integer",
-          description = "length of customer usage records")
+      description = "length of customer usage records")
   private Integer usageRecordLength = 7 * 24; // one week
 
   @ConfigurableValue(valueType = "Integer",
@@ -106,51 +106,55 @@ implements BrokerContext
   private Integer loginRetryTimeout = 3000; // 3 sec
 
   @ConfigurableValue(valueType = "Integer",
-          description = "Time limit in msec to retry logins before giving up")
+      description = "Time limit in msec to retry logins before giving up")
   private Integer retryTimeLimit = 180000; // 3 min
 
   @ConfigurableValue(valueType = "String",
-          description = "Broker username")
+      description = "Broker username")
   private String username = "broker";
 
   @ConfigurableValue(valueType = "String",
-          description = "Broker login password")
+      description = "Broker login password")
   private String password = "password";
 
   @ConfigurableValue(valueType = "String",
-          description = "Name of tournament")
+      description = "Name of tournament")
   private String tourneyName = "";
 
   @ConfigurableValue(valueType = "String",
-          description = "url for tournament login")
+      description = "url for tournament login")
   private String tourneyUrl = "";
 
   @ConfigurableValue(valueType = "String",
-          description = "Authorization token for tournament")
+      description = "Authorization token for tournament")
   private String authToken = "";
 
+  @ConfigurableValue(valueType = "String",
+      description = "Name of incoming message queue")
+  private String serverQueueName = "serverInput";
+
+  @ConfigurableValue(valueType = "String",
+      description = "URL for JMS message broker running on server")
+  private String jmsBrokerUrl = null;
+
+  @ConfigurableValue(valueType = "String",
+      description = "Name of outgoing message queue")
+  private String brokerQueueName = null; // set by tournament manager
+
+  @ConfigurableValue(valueType = "Boolean",
+      description = "If true, then broker pauses in each timeslot")
+  private boolean interactive = false; // if true, pause in each timeslot
+
   // Broker keeps its own records
-  //private ArrayList<String> brokerNames;
-  //private Instant baseTime = null;
   private long quittingTime = 0l;
   private int currentTimeslot = 0; // index of last started timeslot
   private int timeslotCompleted = 0; // index of last completed timeslot
-  private boolean interactive = false; // if true, pause in each timeslot
-  //private int pausedAt = 0; // index of current timeslot during pause, else 0
   private boolean running = false; // true to run, false to stop
   private BrokerAdapter adapter;
-  private String serverQueueName = "serverInput";
-  private String brokerQueueName = null; // set by tournament manager
 
   // synchronization variables
-  private boolean noNtp = false; // true if we should attempt offset estimate
   private long brokerTime = 0l;
   private long serverClockOffset = 0l; // should stay zero for ntp situation
-  //private long maxResponseDelay = 400l; // <800msec delay is "immediate"
-  private long defaultResponseTime = 100l;
-
-  // needed for backward compatibility
-  private String jmsBrokerUrl = null;
 
   /**
    * Default constructor for remote broker deployment
@@ -161,25 +165,16 @@ implements BrokerContext
   }
 
   /**
-   * Starts a new session
-   * @param noNtp 
+   * Starts a new session, setting parameters from command-line and from
+   * config file. 
    */
-  public void startSession (File configFile, String jmsUrl, boolean noNtp,
-                            String queueName, String serverQueue, long end,
-                            boolean interactive)
+  public void startSession (PropertiesConfiguration cli,
+                            File configFile, long end)
   {
     quittingTime = end;
-    this.noNtp = noNtp;
-    this.interactive = interactive;
-    if (null != queueName && !queueName.isEmpty())
-      brokerQueueName = queueName;
-    if (null != serverQueue && !serverQueue.isEmpty())
-      serverQueueName = serverQueue;
+    propertiesService.addProperties(cli);
     if (null != configFile && configFile.canRead())
       propertiesService.setUserConfig(configFile);
-    if (null != jmsUrl)
-      propertiesService.setProperty("samplebroker.core.jmsManagementService.jmsBrokerUrl",
-                                      jmsUrl);
     propertiesService.configureMe(this);
     
     // Initialize and run.
@@ -421,32 +416,25 @@ implements BrokerContext
     adapter.setKey(accept.getKey());
     router.setKey(accept.getKey());
     // estimate time offset
-    long now = new Date().getTime();
-    long response = now - brokerTime;
-    //if (response < maxResponseDelay) {
-      // assume the response was halfway between login and now
-    //  now -= response / 2;
-    //}
-    //else {
-      // assume default response time
-      now -= defaultResponseTime;
-    //}
-    if (noNtp) {
-      // Rough clock offset calculation
-      if (0l != accept.getServerTime()) {
-        // ignore missing data for backward compatibility
-        serverClockOffset = accept.getServerTime() - now;
-        if (Math.abs(serverClockOffset) < defaultResponseTime) {
-          // assume ntp is working
-          serverClockOffset = 0l;
-        }
-      }
-      else {
-        log.info("Server does not provide system time - cannot adjust offset");
-      }
-      log.info("login response = " + response
-               + ", server clock offset = " + serverClockOffset);
-    }
+    //long now = new Date().getTime();
+    //long response = now - brokerTime;
+    //now -= defaultResponseTime;
+//    if (noNtp) {
+//      // Rough clock offset calculation
+//      if (0l != accept.getServerTime()) {
+//        // ignore missing data for backward compatibility
+//        serverClockOffset = accept.getServerTime() - now;
+//        if (Math.abs(serverClockOffset) < defaultResponseTime) {
+//          // assume ntp is working
+//          serverClockOffset = 0l;
+//        }
+//      }
+//      else {
+//        log.info("Server does not provide system time - cannot adjust offset");
+//      }
+//      log.info("login response = " + response
+//               + ", server clock offset = " + serverClockOffset);
+//    }
     notifyAll();
   }
   

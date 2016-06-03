@@ -154,7 +154,7 @@ public class JmsManagementService
    * @param jmsBrokerUrl the jmsBrokerUrl to set
    */
   @ConfigurableValue(valueType = "String",
-      description = "JMS broker URL to use")
+      description = "JMS message broker URL to connect to")
   public void setJmsBrokerUrl (String jmsBrokerUrl)
   {
     this.jmsBrokerUrl = jmsBrokerUrl;
