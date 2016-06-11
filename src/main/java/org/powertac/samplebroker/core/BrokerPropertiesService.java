@@ -134,17 +134,21 @@ implements ApplicationContextAware
    * matters. Specifically, earlier configuration sources will override
    * later sources.
    */
-  public void setUserConfig (File userConfig)
+  public void setUserConfig (File file)
   {
     // then load the user-specified config
     try {
-      PropertiesConfiguration pconfig = new PropertiesConfiguration();
-      pconfig.load(userConfig);
-      config.addConfiguration(pconfig);
-      log.debug("setUserConfig " + userConfig.getName());
+      if (file.toString().endsWith(".xml")) {
+        log.debug("adding xml config " + file.getName());
+        config.addConfiguration(new XMLConfiguration(file));
+      }
+      else if (file.toString().endsWith(".properties")) {
+        log.debug("adding properties config " + file.getName());
+        config.addConfiguration(new PropertiesConfiguration(file));
+      }
     }
-    catch (ConfigurationException e) {
-      log.error("Config error loading " + userConfig + ": " + e.toString());
+    catch (Exception e) {
+      log.warn("Unable to load config file: " + file);
     }
     lazyInit();
   }

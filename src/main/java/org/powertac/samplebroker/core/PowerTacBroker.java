@@ -415,26 +415,6 @@ implements BrokerContext
     IdGenerator.setPrefix(accept.getPrefix());
     adapter.setKey(accept.getKey());
     router.setKey(accept.getKey());
-    // estimate time offset
-    //long now = new Date().getTime();
-    //long response = now - brokerTime;
-    //now -= defaultResponseTime;
-//    if (noNtp) {
-//      // Rough clock offset calculation
-//      if (0l != accept.getServerTime()) {
-//        // ignore missing data for backward compatibility
-//        serverClockOffset = accept.getServerTime() - now;
-//        if (Math.abs(serverClockOffset) < defaultResponseTime) {
-//          // assume ntp is working
-//          serverClockOffset = 0l;
-//        }
-//      }
-//      else {
-//        log.info("Server does not provide system time - cannot adjust offset");
-//      }
-//      log.info("login response = " + response
-//               + ", server clock offset = " + serverClockOffset);
-//    }
     notifyAll();
   }
   
@@ -561,6 +541,7 @@ implements BrokerContext
   }
 
   // The worker thread comes here to wait for the next activation
+  // Time limit is 2 min in non-interactive mode
   synchronized int waitForActivation (int index)
   {
     try {
@@ -571,7 +552,8 @@ implements BrokerContext
         wait(maxWait);
         long diff = System.currentTimeMillis() - nowStamp;
         if (diff >= maxWait) {
-          if (index != 0) {
+          if (!interactive && index != 0) {
+            // don't time out in interactive mode
             String msg =
               "worker thread waited more than " + maxWait / 1000
                   + " secs for server, abandoning game";
@@ -637,14 +619,14 @@ implements BrokerContext
                  + ", timeslot " + current.getSerialNumber());
         if (interactive) {
           // pause the server before activating services
-          long now = new Date().getTime();
+          //long now = new Date().getTime();
           log.info("Pause at {}", timeService.getCurrentDateTime().toString());
           sendMessage(new PauseRequest(adapter));
           activateServices();
-          // release the pause
-          sendMessage(new PauseRelease(adapter));
-          log.info("Pause release after {} msec",
-                   new Date().getTime() - now);
+          // Don't release the pause - the peer must do that
+          //sendMessage(new PauseRelease(adapter));
+          //log.info("Pause release after {} msec",
+          //         new Date().getTime() - now);
         }
         else {
           // unconditionally activate
