@@ -35,7 +35,6 @@ import org.powertac.samplebroker.interfaces.Initializable;
 import org.powertac.common.config.ConfigurableValue;
 import org.powertac.common.msg.BrokerAccept;
 import org.powertac.common.msg.BrokerAuthentication;
-import org.powertac.common.msg.PauseRelease;
 import org.powertac.common.msg.PauseRequest;
 import org.powertac.common.msg.SimEnd;
 import org.powertac.common.msg.SimPause;
@@ -617,21 +616,8 @@ implements BrokerContext
         Timeslot current = timeslotRepo.currentTimeslot();
         log.info("activate at " + timeService.getCurrentDateTime().toString()
                  + ", timeslot " + current.getSerialNumber());
-        if (interactive) {
-          // pause the server before activating services
-          //long now = new Date().getTime();
-          log.info("Pause at {}", timeService.getCurrentDateTime().toString());
-          sendMessage(new PauseRequest(adapter));
-          activateServices();
-          // Don't release the pause - the peer must do that
-          //sendMessage(new PauseRelease(adapter));
-          //log.info("Pause release after {} msec",
-          //         new Date().getTime() - now);
-        }
-        else {
-          // unconditionally activate
-          activateServices();
-        }
+        // unconditionally activate
+        activateServices();
       }
     }
 

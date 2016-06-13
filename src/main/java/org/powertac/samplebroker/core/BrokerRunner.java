@@ -17,6 +17,8 @@ package org.powertac.samplebroker.core;
 
 import java.io.File;
 import java.util.Date;
+import java.util.List;
+
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -63,6 +65,8 @@ public class BrokerRunner
     parser.accepts("raw-xml");
     //parser.accepts("no-ntp");
     parser.accepts("interactive");
+    OptionSpec<String> propOption =
+        parser.accepts("prop").withRequiredArg().ofType(String.class);
 
     // do the parse
     OptionSet options = parser.parse(args);
@@ -119,6 +123,18 @@ public class BrokerRunner
         cliProps.setProperty("samplebroker.core.brokerMessageReceiver.rawXml",
                              "true");
         System.out.print(" raw-xml=\"true\"");
+      }
+      if (options.has(propOption)) {
+        List<String> values = options.valuesOf(propOption);
+        for (String value: values) {
+          int colon = value.indexOf(":");
+          if (colon > 0) {
+            String name = value.substring(0, colon);
+            String val = value.substring(colon + 1);
+            cliProps.setProperty(name, val);
+            System.out.print(" " + name + "=" + val);
+          }
+        }
       }
       System.out.println(" />");
 
