@@ -71,17 +71,24 @@ public class BrokerMessageReceiver implements MessageListener
   // hash sets to speed lookup of xml types
   private HashSet<String> rawTypes;
   private HashSet<String> cookedTypes;
-  private Pattern tagRe = Pattern.compile("<(\\S+)\\s");
+  private Pattern tagRe = Pattern.compile("<([-_\\w]+)[\\s/>]");
 
   public void initialize ()
   {
     propertiesService.configureMe(this);
+    log.info("rawXml={}", rawXml);
     if (rawXml) {
       // set up data structures
       rawTypes = new HashSet<>();
-      rawMsgTypes.forEach(msg -> rawTypes.add(msg));
+      rawMsgTypes.forEach(msg -> {
+        //log.info("raw type {}", msg);
+        rawTypes.add(msg);
+      });
       cookedTypes = new HashSet<>();
-      cookedMsgTypes.forEach(msg -> cookedTypes.add(msg));
+      cookedMsgTypes.forEach(msg -> {
+        //log.info("cooked type {}", msg);
+        cookedTypes.add(msg);
+      });
       // find the message handler if it's not already there
       if (null == adapter) {
         List<IpcAdapter> handlers =
@@ -104,25 +111,28 @@ public class BrokerMessageReceiver implements MessageListener
     if (message instanceof TextMessage) {
       String msg;
       try {
-        log.debug("onMessage(Message) - receiving a message");
+        //log.debug("onMessage(Message) - receiving a message");
         msg = ((TextMessage) message).getText();
+        log.info("received message:\n" + msg);
+        onMessage(msg);
         if (rawXml) {
           // Extract the tag, conditionally pass on the message and/or
           // unmarshal it and process it locally
           Matcher m = tagRe.matcher(msg);
           if (m.lookingAt()) {
             String tag = m.group(1);
+            log.info("msg tag: {}", tag);
+            //if (cookedTypes.contains(tag)) {
+            //  onMessage(msg);
+            //}
             if (rawTypes.contains(tag)) {
               adapter.exportMessage(msg);
             }
-            if (cookedTypes.contains(tag)) {
-              onMessage(msg);
-            }
           }
         }
-        else {
-          onMessage(msg);
-        }
+        //else {
+        //  onMessage(msg);
+        //}
       } catch (JMSException e) {
         log.error("failed to extract text from TextMessage", e);
       }
@@ -130,7 +140,6 @@ public class BrokerMessageReceiver implements MessageListener
   }
 
   private void onMessage (String xml) {
-    log.info("onMessage(String) - received message:\n" + xml);
     Object message = converter.fromXML(xml);
     //log.debug("onMessage(String) - received message of type " + message.getClass().getSimpleName());
     messageDispatcher.routeMessage(message);
