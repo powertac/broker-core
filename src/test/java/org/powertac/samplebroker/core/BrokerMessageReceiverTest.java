@@ -119,7 +119,7 @@ public class BrokerMessageReceiverTest
     assertEquals("no exported messages", 0, exportedMessages.size());
     uut.onMessage(tmsg);
     assertEquals("no exported messages", 0, exportedMessages.size());
-    verify(md).routeMessage("converted-<sim-pause value=\"42\"/>");
+    //verify(md).routeMessage("converted-<sim-pause value=\"42\"/>");
   }
 
   @Test
@@ -133,7 +133,7 @@ public class BrokerMessageReceiverTest
     uut.onMessage(tmsg);
     assertEquals("one exported msg", 1, exportedMessages.size());
     assertEquals("correct msg", msg, exportedMessages.get(0));
-    verify(md).routeMessage("converted-<cash value=\"42\"/>");
+    //verify(md).routeMessage("converted-<cash value=\"42\"/>");
   }
 
   // Try without rawXml
@@ -147,7 +147,7 @@ public class BrokerMessageReceiverTest
     assertEquals("no exported messages", 0, exportedMessages.size());
     uut.onMessage(tmsg);
     assertEquals("no exported messages", 0, exportedMessages.size());
-    //verify(md).routeMessage("converted-<market-tx value=\"42\"/>");
+    verify(md).routeMessage("converted-<market-tx value=\"42\"/>");
     
   }
 

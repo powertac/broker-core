@@ -122,9 +122,9 @@ public class BrokerMessageReceiver implements MessageListener
           if (m.lookingAt()) {
             String tag = m.group(1);
             log.info("msg tag: {}", tag);
-            //if (cookedTypes.contains(tag)) {
-            //  onMessage(msg);
-            //}
+            if (cookedTypes.contains(tag)) {
+              onMessage(msg);
+            }
             if (rawTypes.contains(tag)) {
               adapter.exportMessage(msg);
             }
