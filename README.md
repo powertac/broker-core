@@ -1,4 +1,5 @@
-Power TAC Broker Core
-=====================
+# Discontinued
 
-The broker-core module provides a foundation that interfaces correctly with the Power TAC infrastructure. This package implements the "core" of a working broker. It should not need to be modified in order to implement a working broker.
+This repository is no longer maintained separately, but now a part of
+[powertac-core](https://github.com/powertac/powertac-core/).
+
